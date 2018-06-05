@@ -13,6 +13,9 @@ Original file is located at
 
 # !unzip horse2zebra.zip -d .
 
+# !mkdir out_imgs
+
+import time
 import os
 import keras.backend as K
 K.set_image_data_format('channels_last')
@@ -141,6 +144,10 @@ netGA = UNET_G(imageSize, nc_out, nc_in, ngf)
 #SVG(model_to_dot(netG, show_shapes=True).create(prog='dot', format='svg'))
 netGA.summary()
 
+# from keras.models import load_model
+# netGA = load_model('netGA.h5')
+# netGB = load_model('netGB.h5')
+
 from keras.optimizers import RMSprop, SGD, Adam
 
 if use_lsgan:
@@ -243,8 +250,8 @@ def showX(X, rows=1):
     else:
         int_X = int_X.reshape(-1,imageSize,imageSize, 3)
     int_X = int_X.reshape(rows, -1, imageSize, imageSize,3).swapaxes(1,2).reshape(rows*imageSize,-1, 3)
-    img=Image.fromarray(int_X)
-    img.save('./out_imgs/'+str(int(time.time()))+'.jpg')
+    # display(Image.fromarray(int_X))
+    Image.fromarray(int_X).save('./out_imgs/'+str(int(time.time()))+'.jpg')
 
 train_batch = minibatchAB(train_A, train_B, 6)
 
@@ -263,16 +270,19 @@ def showG(A,B):
     arr = np.concatenate([A,B,rA[0],rB[0],rA[1],rB[1]])
     showX(arr, 3)
 
-import time
 # from IPython.display import clear_output
 t0 = time.time()
-niter = 150
+niter = 20
 gen_iterations = 0
 epoch = 0
 errCyc_sum = errGA_sum = errGB_sum = errDA_sum = errDB_sum = 0
 
 display_iters = 50
 #val_batch = minibatch(valAB, 6, direction)
+lost_GA=[]
+lost_GB=[]
+lost_DA=[]
+lost_DB=[]
 train_batch = minibatchAB(train_A, train_B, batchSize)
 
 while epoch < niter: 
@@ -280,9 +290,13 @@ while epoch < niter:
     errDA, errDB  = netD_train([A, B])
     errDA_sum +=errDA
     errDB_sum +=errDB
-
+    lost_DA.append(errDA)
+    lost_DB.append(errDB)
+    
     # epoch, trainA, trainB = next(train_batch)
     errGA, errGB, errCyc = netG_train([A, B])
+    lost_GA.append(errGA)
+    lost_GB.append(errGA)
     errGA_sum += errGA
     errGB_sum += errGB
     errCyc_sum += errCyc
@@ -295,6 +309,71 @@ while epoch < niter:
            errGA_sum/display_iters, errGB_sum/display_iters, 
            errCyc_sum/display_iters), time.time()-t0)
         _, A, B = train_batch.send(4)
-        showG(A,B)
+        showG(A,B)        
         errCyc_sum = errGA_sum = errGB_sum = errDA_sum = errDB_sum = 0
+
+np.savetxt('lost_DA.out', np.array(lost_DA), delimiter=',')
+np.savetxt('lost_DB.out', np.array(lost_DB), delimiter=',')
+np.savetxt('lost_GA.out', np.array(lost_GA), delimiter=',')
+np.savetxt('lost_GB.out', np.array(lost_GB), delimiter=',')
+# len(lost_GA[1000:])
+
+# import matplotlib.pyplot as plt
+# plt.plot(range(18761), lost_DA[1000:])
+
+# def smooth(y, box_pts):
+#     box = np.ones(box_pts)/box_pts
+#     y_smooth = np.convolve(y, box, mode='same')
+#     return y_smooth
+
+# plt.plot(range(18761), smooth(lost_GA[1000:],200))
+#
+# plt.plot(range(18761), smooth(lost_GB[1000:],100))
+#
+# plt.plot(range(18761), smooth(lost_DB[1000:],100))
+#
+# plt.plot(range(18761), smooth(lost_DA[1000:],100))
+#
+# !ls out_imgs/
+#
+# from IPython.display import Image as dis_imgs
+# dis_imgs('./out_imgs/1528107578.jpg')
+
+netGB.save('netGB.h5')
+
+netGA.save('netGA.h5')
+
+rtn = np.float32([read_image('horse2zebra/testA/n02381460_1000.jpg')])
+showX(rtn)
+
+# def G(fn_generate, X):
+#     r = np.array([fn_generate([X[i:i+1]]) for i in range(X.shape[0])])
+#     return r.swapaxes(0,1)[:,:,0]
+# rA = G(cycleA_generate, rtn)
+# showX(rA)
+#
+# del netGA
+# del netGB
+#
+# def G(fn_generate, X):
+#     r = np.array([fn_generate([X[i:i+1]]) for i in range(X.shape[0])])
+#     return r.swapaxes(0,1)[:,:,0]
+# rA = G(cycleA_generate, rtn)
+# showX(rA)
+#
+# rtn = np.float32([read_image('horse2zebra/testA/n02381460_120.jpg')])
+# showX(rtn)
+# # !ls horse2zebra/testA
+#
+# def G(fn_generate, X):
+#     r = np.array([fn_generate([X[i:i+1]]) for i in range(X.shape[0])])
+#     return r.swapaxes(0,1)[:,:,0]
+# rA = G(cycleA_generate, rtn)
+# showX(rA)
+#
+# from google.colab import files
+#
+# files.download('./netGB.h5')
+#
+# !ls
 
