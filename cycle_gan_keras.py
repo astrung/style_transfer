@@ -343,8 +343,8 @@ netGB.save('netGB.h5')
 
 netGA.save('netGA.h5')
 
-rtn = np.float32([read_image('horse2zebra/testA/n02381460_1000.jpg')])
-showX(rtn)
+# rtn = np.float32([read_image('horse2zebra/testA/n02381460_1000.jpg')])
+# showX(rtn)
 
 # def G(fn_generate, X):
 #     r = np.array([fn_generate([X[i:i+1]]) for i in range(X.shape[0])])
